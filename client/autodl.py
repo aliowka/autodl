@@ -93,7 +93,7 @@ def stats(host, port):
 @click.option('-p', '--port', default=SERVICE_PORT)
 @click.argument('number', default=10, required=False)
 def update_tasks_num(host, port, number):
-    """Enqueue URL to Auotodownloaders queue"""
+    """Update maximum tasks number"""
     service_url = "http://%s:%s" % (host, port)
     user = getpass.getuser()
     resp = requests.post(urlparse.urljoin(service_url, "maxtasks"),

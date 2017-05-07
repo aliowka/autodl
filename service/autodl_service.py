@@ -1,3 +1,4 @@
+#!/usr/bin/python
 import cgi
 import json
 
