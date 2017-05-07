@@ -3,7 +3,7 @@ import os
 import requests
 import shutil
 from multiprocessing import Pool
-from service.workers_base import BaseWorker, BaseWorkersManager
+from service.workers_manager_base import BaseWorker, BaseWorkersManager
 
 
 class Worker(BaseWorker):
@@ -37,3 +37,5 @@ if __name__ == '__main__':
     path = "/tmp/test2"
     if os.path.exists(path):
         shutil.rmtree(path)
+    wm =WorkersManager()
+    wm.run()

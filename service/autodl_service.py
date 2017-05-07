@@ -18,7 +18,7 @@ from service.downloader_statistics import DownloaderStatistics
 from service.exceptions import UnknownUser, CriticalParameterMissing
 from service.settings import SERVICE_PORT, MAX_TASKS_NUMBER
 from service.task import Task, TASK_STATUSES, Stats
-from service.workers_async import WorkersManager
+from service.workers_manager_async import WorkersManager
 
 from twisted.python import log
 

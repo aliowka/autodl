@@ -1,15 +1,15 @@
 import os
+import shutil
 import sys
 from Queue import Empty, Queue
-import shutil
 
+import time
 from twisted.internet.task import LoopingCall
 
 from service.downloader_statistics import DownloaderStatistics
 from service.settings import IDLE_DELAY
 from service.task import Task
-from service.workers_base import BaseWorkersManager, BaseWorker
-from service.workers_multiproc import WorkersManager
+from service.workers_manager_base import BaseWorkersManager, BaseWorker
 from utils.helpers import waiting_deferred
 
 sys.path.append(
@@ -85,18 +85,3 @@ class WorkersManager(BaseWorkersManager):
 
         return waiting_deferred(reactor, IDLE_DELAY)
 
-
-if __name__ == '__main__':
-    q = Queue()
-    wm = WorkersManager(q)
-    path = "/tmp/test1"
-    if os.path.exists(path):
-        shutil.rmtree(path)
-
-    for i in xrange(100):
-        task = Task("http://lib.ru", "aliowka", path)
-        q.put(task)
-    reactor.callLater(0, wm.resume)
-    # reactor.callLater(10, wm.pause)
-    # reactor.callLater(20, wm.resume)
-    reactor.run()
