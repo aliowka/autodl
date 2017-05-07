@@ -11,6 +11,12 @@ from service.task import TASK_STATUSES
 
 class MyTestCase(unittest.TestCase):
     def setUp(self):
+        """
+        Override service port to not collide with "production" version
+        Run "autodl-service" in a separate process 
+        Test cases use real client "autodl" as a subprocess to interact with the 
+        service.
+        """
         self.host = "localhost"
         autodl_service.SERVICE_PORT = 9999
         self.service = multiprocessing.Process(target=autodl_service.main)
@@ -18,20 +24,23 @@ class MyTestCase(unittest.TestCase):
         time.sleep(1)
 
     def tearDown(self):
+        # close service
         self.service.terminate()
 
     def test_pause_resume(self):
-
         self._pause()
 
         bulk_size = 3
         self._add_many_tasks(bulk_size, with_file=False)
 
+        # after pausing and adding tasks there should be all of them Enqueued
+        # and 0 Downloadin and 0 Finished
         response = self._stats()
         self.assertEqual(0, response["tasks"][TASK_STATUSES.DOWNLOADING])
         self.assertEqual(0, response["tasks"][TASK_STATUSES.FINISHED])
         self.assertEqual(bulk_size, response["tasks"][TASK_STATUSES.ENQUEUED])
 
+        # after resuming, there should be 0 Enqueued and all of them Finished.
         self._resume()
         response = self._stats()
         self.assertEqual(0, response["tasks"][TASK_STATUSES.ENQUEUED])
@@ -43,11 +52,17 @@ class MyTestCase(unittest.TestCase):
         bulk_size = 3
         self._add_many_tasks(bulk_size, with_file=False)
 
+        # after pausing and adding tasks there should be all of them Enqueued
+        # and 0 Downloadin and 0 Finished
+
         response = self._stats()
+        self.assertEqual(0, response["tasks"][TASK_STATUSES.DOWNLOADING])
+        self.assertEqual(0, response["tasks"][TASK_STATUSES.FINISHED])
         self.assertEqual(bulk_size, response["tasks"][TASK_STATUSES.ENQUEUED])
 
         self._clear()
 
+        # After pasing, adding tasks and clearing, there should be all of them in CLEARED status.
         response = self._stats()
         self.assertEqual(0, response["tasks"][TASK_STATUSES.ENQUEUED])
         self.assertEqual(0, response["tasks"][TASK_STATUSES.DOWNLOADING])
@@ -55,12 +70,23 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(bulk_size, response["tasks"][TASK_STATUSES.CLEARED])
 
     def test_set_new_max_tasks(self):
-        bulk_size = 5
+        """
+        Testing maximum tasks limit.
+        The test consists of pausing the workers,
+        adding many tasks and setting the max_task_num to
+        something much smaller then the number of tasks added.
+        Resume the workers and pole in a loop for DOWNLOADING tasks.
+        Since the Downloading is the heaviest part of the process it's 
+        prety sure to pole this counter for the number of currently running tasks.
+        """
+
+        bulk_size = 10
         max_tasks = 2
         self._pause()
         self._add_many_tasks(bulk_size, with_file=False)
         self._set_new_max_tasks(max_tasks)
         self._resume()
+
         while True:
             response = self._stats()
             self.assertGreaterEqual(max_tasks, response["tasks"][TASK_STATUSES.DOWNLOADING])
