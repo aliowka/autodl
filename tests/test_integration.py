@@ -54,6 +54,19 @@ class MyTestCase(unittest.TestCase):
         self.assertEqual(0, response["tasks"][TASK_STATUSES.FINISHED])
         self.assertEqual(bulk_size, response["tasks"][TASK_STATUSES.CLEARED])
 
+    def test_set_new_max_tasks(self):
+        bulk_size = 5
+        max_tasks = 2
+        self._pause()
+        self._add_many_tasks(bulk_size, with_file=False)
+        self._set_new_max_tasks(max_tasks)
+        self._resume()
+        while True:
+            response = self._stats()
+            self.assertGreaterEqual(max_tasks, response["tasks"][TASK_STATUSES.DOWNLOADING])
+            if bulk_size == response["tasks"][TASK_STATUSES.FINISHED]:
+                break
+
     def _add_many_tasks(self, bulk_size, with_file=True):
         for _ in xrange(bulk_size):
             self._add(with_file)
@@ -72,6 +85,15 @@ class MyTestCase(unittest.TestCase):
             self.assertGreater(len(open(task["dest"]).read()), 0)
 
         return response
+
+    def _set_new_max_tasks(self, max_tasks):
+        cmd = " ".join([os.path.join(ROOT_DIR, "client", "autodl.py"),
+                        "update_tasks_num", "--port", str(autodl_service.SERVICE_PORT),
+                        str(max_tasks)])
+        response = self._run_command(cmd)
+        self.assertEqual("max_tasks set to %s" % max_tasks, response["message"])
+        return response
+
 
     def _clear(self):
         cmd = " ".join([os.path.join(ROOT_DIR, "client", "autodl.py"),

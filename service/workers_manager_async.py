@@ -1,16 +1,20 @@
+
+#===============================================================================
+# This is the implementation of Asynchronous Workers managed by WorkersManager.
+# WorkersManager listening on the tasks_queue and once it gets the task from the queue,
+# it creates a new Worker for this task and run it with runner.
+# Worker is responsible for downloading and storing the result to disk.
+# What's amazing here is that Worker (Task downloading and storing), together with
+# WorkerManger and even the API Service itself,
+# are running on a single reactor in a single thread.
+# The number of workers is variable and subject to constrain of max_tasks_number.
+# When the task is downloaded and saved, the Worker destroyd, but the runner continue
+# to run empty. Runner is a LoopinCall which fires repeatedly. Whet it runs empty it
+# increases the deleay between it's runs by (IDLE_DELAY). This is done to reduce the
+# CPU load.
+#===============================================================================
 import os
-import shutil
 import sys
-from Queue import Empty, Queue
-
-import time
-from twisted.internet.task import LoopingCall
-
-from service.downloader_statistics import DownloaderStatistics
-from service.settings import IDLE_DELAY
-from service.task import Task
-from service.workers_manager_base import BaseWorkersManager, BaseWorker
-from utils.helpers import waiting_deferred
 
 sys.path.append(
     os.path.normpath(
@@ -20,6 +24,14 @@ sys.path.append(
         )
     )
 )
+
+from Queue import Empty
+from twisted.internet.task import LoopingCall
+
+from service.statistics import DownloaderStatistics
+from service.settings import IDLE_DELAY
+from service.workers_manager_base import BaseWorkersManager, BaseWorker
+from utils.helpers import waiting_deferred
 
 from twisted.internet import reactor
 from twisted.web.client import Agent, readBody

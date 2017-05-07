@@ -1,7 +1,6 @@
 import os
 
 ROOT_DIR = os.path.normpath(os.path.join(os.path.abspath(__file__), "../.."))
-FILES_DIR = "files"
 SERVICE_PORT = 6736
 
 ENABLE_UNIQUE_NAMES = True

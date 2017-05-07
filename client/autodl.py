@@ -32,7 +32,7 @@ def add(host, port, url, path):
 @click.option('-h', '--host', default="localhost")
 @click.option('-p', '--port', default=SERVICE_PORT)
 @click.argument('task_id')
-def task(host, port, task_id):
+def status(host, port, task_id):
     """Get task info"""
     service_url = "http://%s:%s" % (host, port)
     user = getpass.getuser()
@@ -85,6 +85,20 @@ def stats(host, port):
     user = getpass.getuser()
     service_url = urlparse.urljoin(service_url, "stats")
     resp = requests.get(service_url, auth=HTTPBasicAuth(user, "password"))
+    print resp.text
+
+
+@cli.command()
+@click.option('-h', '--host', default="localhost")
+@click.option('-p', '--port', default=SERVICE_PORT)
+@click.argument('number', default=10, required=False)
+def update_tasks_num(host, port, number):
+    """Enqueue URL to Auotodownloaders queue"""
+    service_url = "http://%s:%s" % (host, port)
+    user = getpass.getuser()
+    resp = requests.post(urlparse.urljoin(service_url, "maxtasks"),
+                         auth=HTTPBasicAuth(user, "password"),
+                         data={"max_tasks_number": number})
     print resp.text
 
 

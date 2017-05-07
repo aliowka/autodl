@@ -27,53 +27,97 @@ class TASK_STATUSES:
 
 class Stats(object):
     @staticmethod
-    def update(task):
-        if task.status[1] == TASK_STATUSES.CREATED:
-            Stats.tasks_by_statuses[task.status[1]][task.task_id] = task
+    def update(prev_status, new_status):
+        """
+        Stats.tasks_by_statuses represents tasks counters 
+        aggregated by tasks statuses:
+        
+        { "CREATED": int, 
+          "ENQUEUED": int, 
+          "DOWNLOADING": int, 
+          "FINISHED": int, 
+          "FAILED":int, 
+          "CLEARED":int}
+        
+        When task changes it's status from previous to new  
+        the statistics should follow the change as well.
+        The counter of previous status should be decreased
+        and the counter of new - increased.
+        
+        
+        :return: 
+        """
+        if new_status == TASK_STATUSES.CREATED:
+            Stats.tasks_by_statuses[new_status] += 1
             return
 
-        for status in Stats.tasks_by_statuses:
-            if task.task_id in Stats.tasks_by_statuses[status]:
-                Stats.tasks_by_statuses[task.status[1]][task.task_id] = task
-                del Stats.tasks_by_statuses[status][task.task_id]
-                break
+        Stats.tasks_by_statuses[new_status] += 1
+        Stats.tasks_by_statuses[prev_status] -=1
 
     @staticmethod
     def get_statistics():
-        statistics = {}
-        for status in Stats.tasks_by_statuses:
-            statistics[status] = len(Stats.tasks_by_statuses[status])
-        return statistics
+        """
+        :return: statistic
+        """
+        return Stats.tasks_by_statuses
 
     @staticmethod
     def get_task(task_id):
 
+        """
+        Returns task by task_id
+        :param task_id: GUID
+        :return: 
+        """
         for group in Stats.tasks_by_statuses:
             if task_id in Stats.tasks_by_statuses[group]:
                 return Stats.tasks_by_statuses[group][task_id]
 
-
-Stats.tasks_by_statuses = {status: {} for status in TASK_STATUSES.__dict__ if not status.startswith("_")}
+# Initialise Stats.tasks_by_statuses to {"CREATED": 0, ...}
+Stats.tasks_by_statuses = {status: 0 for status in TASK_STATUSES.__dict__ if not status.startswith("_")}
 
 
 class Task(object):
     def __init__(self, url, user, path=None):
+        """
+        
+        :param url: url to Download
+        :param user: authentiacated user
+        :param path: destination path to store the resulting file
+        """
         self.url = url
         self.user = user
         self.task_id = str(uuid.uuid4())
         self.full_path = self._generate_full_path(path)
         self.created = time.time()
         self.status = (self.created, TASK_STATUSES.CREATED)
-        Stats.update(self)
+        Stats.update(None, TASK_STATUSES.CREATED)
 
-    def _generate_full_path(self, destination):
+    def _generate_full_path(self, path):
 
-        full_path = destination
+        """
+        Given the target path generates full_path for 
+        the resulting file.
+        :param path: target path
+        :return: full_path
+        """
+        full_path = path
 
         file_name = self._generate_file_name_from_url(self.url)
         return os.path.join(full_path, file_name)
 
     def _generate_file_name_from_url(self, url):
+        """
+        If ENABLE_UNIQUE_NAMES is True it will allways geneare
+        uniqueu filename. If False it will generate the same name from 
+        the same origin. The old file would be override. 
+        Examples of unique file_names:
+            http://google.com/ --> Unknown-3p4hp34
+            http://googlr.com/index.html --> index-ads8a2w.html
+        
+        :param url: url
+        :return: file_name
+        """
         path = urlparse(url).path
         if not path:
             file_name, file_ext = ("Unknown", "")
@@ -88,8 +132,13 @@ class Task(object):
         return file_name
 
     def update_status(self, status):
+        """
+        This updates tasks status and rearranges the Stats.tasks_by_statuses
+        counters 
+        :param status: 
+        """
+        Stats.update(self.status[1], status)
         self.status = (round(time.time() - self.created, 4), status)
-        Stats.update(self)
         log.debug("%(task_id)s %(status)s %(duration)f %(url)s" % dict(
             task_id=self.task_id,
             duration=self.status[0],
@@ -97,9 +146,13 @@ class Task(object):
             url=self.url))
 
     def __repr__(self):
+        """
+        Nice task representation. 
+        :return: json string
+        """
         return json.dumps({"id": self.task_id,
-                    "url": self.url,
-                    "dest": self.full_path,
-                    "status": self.status[1],
-                    "duration": self.status[0]
-                    })
+                           "url": self.url,
+                           "dest": self.full_path,
+                           "status": self.status[1],
+                           "duration": self.status[0]
+                           })
