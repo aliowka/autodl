@@ -76,7 +76,7 @@ class AddTask(BaseView):
 class ClearTasks(BaseView):
     isLeaf = True
 
-    def render_POST(self, request):
+    def render_GET(self, request):
         super(ClearTasks, self).render_POST(request)
 
         while not self.tasks_queue.empty():
