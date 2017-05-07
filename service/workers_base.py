@@ -28,11 +28,14 @@ class BaseWorker(object):
 
 class BaseWorkersManager(object):
 
-    def __init__(self, tasks_queue, max_tasks_number):
+    def __init__(self, tasks_queue):
         self.running_tasks = 0
-        self.max_tasks_number = max_tasks_number
+        self.max_tasks_number = 5
         self.tasks_queue = tasks_queue
         self.running = True
+
+    def set_max_tasks_number(self, max_tasks_number):
+        self.max_tasks_number = max_tasks_number
 
     def resume(self):
         self.running = True

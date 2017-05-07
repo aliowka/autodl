@@ -14,8 +14,9 @@ from twisted.logger import Logger
 from twisted.web.resource import Resource
 from twisted.web.server import Site
 
+from service.downloader_statistics import DownloaderStatistics
 from service.exceptions import UnknownUser, CriticalParameterMissing
-from service.settings import PORT, MAX_TASKS_NUMBER
+from service.settings import SERVICE_PORT, MAX_TASKS_NUMBER
 from service.task import Task, TASK_STATUSES, Stats
 from service.workers_async import WorkersManager
 
@@ -26,8 +27,12 @@ from utils.helpers import timedLogFormatter
 log.startLogging(sys.stdout)
 log = Logger()
 
+tasks_queue = Queue()
+workers_manager = WorkersManager(tasks_queue)
+
+
 class BaseView(Resource, object):
-    tasks_queue = Queue()
+    tasks_queue = tasks_queue
 
     def render(self, request):
         request.started = time.time()
@@ -48,13 +53,6 @@ class BaseView(Resource, object):
         request.responseHeaders.addRawHeader("content-type", "application/json")
 
 
-class Alive(BaseView):
-    isLeaf = True
-
-    def render_GET(self, request):
-        return "Hello, world! I am alive."
-
-
 class AddTask(BaseView):
     isLeaf = True
 
@@ -71,7 +69,7 @@ class AddTask(BaseView):
         path = request.args.get("path", [None])[0]
         task = Task(url, self.username, path)
         task.update_status(TASK_STATUSES.ENQUEUED)
-        self.tasks_queue.put(task)
+        tasks_queue.put(task)
         return json.dumps({"task": str(task)})
 
 
@@ -90,15 +88,20 @@ class ClearTasks(BaseView):
 class PauseWorkers(BaseView):
     isLeaf = True
 
-    def render_POST(self, request):
-        return "Hello, world! I am located at %r." % (request.prepath,)
+    def render_GET(self, request):
+        seconds = request.args.get("seconds")
+        seconds = int(seconds) if seconds else None
+        workers_manager.pause(seconds=seconds)
+        return json.dumps({"message": "Pausing Workers"})
 
 
 class ResumeWorkers(BaseView):
     isLeaf = True
 
-    def render_POST(self, request):
-        return "Hello, world! I am located at %r." % (request.prepath,)
+    def render_GET(self, request):
+        workers_manager.resume()
+        return json.dumps({"message": "Resuming Workers"})
+
 
 class TaskInfo(BaseView):
     isLeaf = True
@@ -115,25 +118,37 @@ class TaskInfo(BaseView):
             return json.dumps({"message": "Not Found"})
 
 
+class LastStats(BaseView):
+    isLeaf = True
+
+    def render_GET(self, request):
+        dwstats = DownloaderStatistics().expiring_dict
+        tasks = Stats.get_statistics()
+        return json.dumps({
+            "tasks": tasks,
+            "downloader": dwstats
+        })
+
 
 @click.command()
 @click.argument('max_tasks_number', default=MAX_TASKS_NUMBER)
 def main(max_tasks_number):
-    root = Resource()
-    root.putChild('alive', Alive())
+    root = BaseView()
     root.putChild('add', AddTask())
     root.putChild('clear', ClearTasks())
     root.putChild('pause', PauseWorkers())
     root.putChild('resume', ResumeWorkers())
-    root.putChild('task', TaskInfo())
+    root.putChild('status', TaskInfo())
+    root.putChild('stats', LastStats())
 
     site = Site(root, logFormatter=timedLogFormatter)
     site.logRequest = True
 
-    reactor.listenTCP(PORT, site)
+    reactor.listenTCP(SERVICE_PORT, site)
     log.info("Starting Workers with max-tasks-number=%s" % max_tasks_number)
-    workers_manager = WorkersManager(BaseView.tasks_queue, int(max_tasks_number))
-    reactor.callWhenRunning(workers_manager.resume)
+
+    workers_manager.set_max_tasks_number(max_tasks_number)
+    reactor.callLater(0, workers_manager.resume)
     reactor.run()
 
 if __name__ == "__main__":

@@ -1,3 +1,4 @@
+import json
 import os
 import random
 import string
@@ -31,11 +32,18 @@ class Stats(object):
             Stats.tasks_by_statuses[task.status[1]][task.task_id] = task
             return
 
-        for group in Stats.tasks_by_statuses:
-            if task.task_id in Stats.tasks_by_statuses[group]:
+        for status in Stats.tasks_by_statuses:
+            if task.task_id in Stats.tasks_by_statuses[status]:
                 Stats.tasks_by_statuses[task.status[1]][task.task_id] = task
-                del Stats.tasks_by_statuses[group][task.task_id]
+                del Stats.tasks_by_statuses[status][task.task_id]
                 break
+
+    @staticmethod
+    def get_statistics():
+        statistics = {}
+        for status in Stats.tasks_by_statuses:
+            statistics[status] = len(Stats.tasks_by_statuses[status])
+        return statistics
 
     @staticmethod
     def get_task(task_id):
@@ -55,6 +63,8 @@ class Task(object):
         self.task_id = str(uuid.uuid4())
         self.full_path = self._generate_full_path(path)
         self.created = time.time()
+        self.status = (self.created, TASK_STATUSES.CREATED)
+        Stats.update(self)
 
     def _generate_full_path(self, destination):
 
@@ -87,7 +97,7 @@ class Task(object):
             url=self.url))
 
     def __repr__(self):
-        return str({"id": self.task_id,
+        return json.dumps({"id": self.task_id,
                     "url": self.url,
                     "dest": self.full_path,
                     "status": self.status[1],

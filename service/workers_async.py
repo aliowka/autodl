@@ -3,8 +3,9 @@ import sys
 from Queue import Empty, Queue
 import shutil
 
-import time
 from twisted.internet.task import LoopingCall
+
+from service.downloader_statistics import DownloaderStatistics
 from service.settings import IDLE_DELAY
 from service.task import Task
 from service.workers_base import BaseWorkersManager, BaseWorker
@@ -31,6 +32,7 @@ class Worker(BaseWorker):
         super(Worker, self)._download_url_content(task)
         agent = Agent(reactor)
         d = agent.request(method="GET", uri=task.url)
+        d.addBoth(DownloaderStatistics.update)
         d.addCallback(readBody)
         return d
 
@@ -42,7 +44,6 @@ class Worker(BaseWorker):
 
 
 class WorkersManager(BaseWorkersManager):
-
     runners = []
 
     def resume(self):
@@ -50,13 +51,17 @@ class WorkersManager(BaseWorkersManager):
             runner = LoopingCall(self.run)
             if runner.running:
                 continue
-            runner.start(0.1)
             self.runners.append(runner)
+            runner.start(0.1)
 
-    def pause(self):
+
+    def pause(self, seconds=None):
         for runner in self.runners:
             if runner.running:
                 runner.stop()
+
+        if seconds:
+            reactor.callLater(seconds, self.resume)
 
     def idle(self):
         pass
@@ -83,15 +88,15 @@ class WorkersManager(BaseWorkersManager):
 
 if __name__ == '__main__':
     q = Queue()
-    wm = WorkersManager(q, 10)
+    wm = WorkersManager(q)
     path = "/tmp/test1"
     if os.path.exists(path):
         shutil.rmtree(path)
 
-    for i in xrange(1):
+    for i in xrange(100):
         task = Task("http://lib.ru", "aliowka", path)
         q.put(task)
     reactor.callLater(0, wm.resume)
-    reactor.callLater(10, wm.pause)
-    reactor.callLater(20, wm.resume)
+    # reactor.callLater(10, wm.pause)
+    # reactor.callLater(20, wm.resume)
     reactor.run()

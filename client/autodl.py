@@ -6,7 +6,7 @@ import urlparse
 from requests.auth import HTTPBasicAuth
 
 import click
-from service.settings import PORT
+from service.settings import SERVICE_PORT
 
 @click.group()
 def cli():
@@ -14,7 +14,7 @@ def cli():
 
 @cli.command()
 @click.option('-h', '--host', default="localhost")
-@click.option('-p', '--port', default=PORT)
+@click.option('-p', '--port', default=SERVICE_PORT)
 @click.argument('url')
 @click.argument('path', default=None, required=False)
 def add(host, port, url, path):
@@ -22,60 +22,70 @@ def add(host, port, url, path):
     service_url = "http://%s:%s" % (host, port)
     user = getpass.getuser()
     path = path or os.path.join(os.path.expanduser("~%s" % user), "autodl-storage")
-    print "Connecting to http://%s:%s" % (host, port)
-    print "Sending:", url
-    print "Authenticating as:", user
-    print "Download destination:", path
     resp = requests.post(urlparse.urljoin(service_url, "add"),
                          auth=HTTPBasicAuth(user, "password"),
                          data={"url": url, "path": path})
-    print "Response:", resp.status_code, resp.text
+    print resp.text
 
 
 @cli.command()
 @click.option('-h', '--host', default="localhost")
-@click.option('-p', '--port', default=PORT)
+@click.option('-p', '--port', default=SERVICE_PORT)
 @click.argument('task_id')
 def task(host, port, task_id):
-    """Clear all enqueued URLs"""
+    """Get task info"""
     service_url = "http://%s:%s" % (host, port)
     user = getpass.getuser()
-    print "Getting status for task:", task_id
-    print "Connecting to http://%s:%s" % (host, port)
-    print "Authenticating as:", user
-    service_url = urlparse.urljoin(service_url, "task?task_id=%s" % task_id)
-    print service_url
+    service_url = urlparse.urljoin(service_url, "status?task_id=%s" % task_id)
     resp = requests.get(service_url, auth=HTTPBasicAuth(user, "password"))
-    print "Response:", resp.status_code, resp.text
+    print resp.text
 
 
 @cli.command()
 @click.option('-h', '--host', default="localhost")
-@click.option('-p', '--port', default=PORT)
+@click.option('-p', '--port', default=SERVICE_PORT)
 def clear(host, port):
     """Clear all enqueued URLs"""
-    print host, port
+    service_url = "http://%s:%s/clear" % (host, port)
+    user = getpass.getuser()
+    resp = requests.get(service_url, auth=HTTPBasicAuth(user, "password"))
+    print resp.text
+
 
 @cli.command()
 @click.option('-h', '--host', default="localhost")
-@click.option('-p', '--port', default=PORT)
-def pause(host, port):
+@click.option('-p', '--port', default=SERVICE_PORT)
+@click.argument('seconds', required=False)
+def pause(host, port, seconds):
     """Don't start new downloads of enqeuued URLs"""
-    print host, port
+    service_url = "http://%s:%s/pause" % (host, port)
+    if seconds:
+        service_url = "?seconds=".join([service_url, seconds])
+    user = getpass.getuser()
+    resp = requests.get(service_url, auth=HTTPBasicAuth(user, "password"))
+    print resp.text
+
 
 @cli.command()
 @click.option('-h', '--host', default="localhost")
-@click.option('-p', '--port', default=PORT)
+@click.option('-p', '--port', default=SERVICE_PORT)
 def resume(host, port):
     """Allow new downloads of enqueued URLs"""
-    print host, port
+    service_url = "http://%s:%s/resume" % (host, port)
+    user = getpass.getuser()
+    resp = requests.get(service_url, auth=HTTPBasicAuth(user, "password"))
+    print resp.text
 
 @cli.command()
 @click.option('-h', '--host', default="localhost")
-@click.option('-p', '--port', default=PORT)
+@click.option('-p', '--port', default=SERVICE_PORT)
 def stats(host, port):
-    """Show stats"""
-    print host, port, url
+    """Show statistics for last 10 min."""
+    service_url = "http://%s:%s" % (host, port)
+    user = getpass.getuser()
+    service_url = urlparse.urljoin(service_url, "stats")
+    resp = requests.get(service_url, auth=HTTPBasicAuth(user, "password"))
+    print resp.text
 
 
 if __name__ == '__main__':

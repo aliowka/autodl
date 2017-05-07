@@ -17,8 +17,13 @@ def timedLogFormatter(timestamp, request):
     :param timestamp: 
     :param request: A twisted.web.server.Request instance
     """
+
     agent = _escape(request.getHeader(b"user-agent") or b"-")
-    duration = round(time.time() - request.started, 4)
+
+    if hasattr(request, "started"):
+        duration = round(time.time() - request.started, 4)
+    else:
+        duration = 0
     line = (
         u'%(duration)ss "%(ip)s" "%(method)s %(uri)s %(protocol)s %(args)s" '
         u'%(code)d %(length)s"' % dict(
