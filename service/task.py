@@ -48,18 +48,18 @@ class Stats(object):
         :return: 
         """
         if new_status == TASK_STATUSES.CREATED:
-            Stats.tasks_by_statuses[new_status] += 1
+            Stats.tasks_statuses_counters[new_status] += 1
             return
 
-        Stats.tasks_by_statuses[new_status] += 1
-        Stats.tasks_by_statuses[prev_status] -=1
+        Stats.tasks_statuses_counters[new_status] += 1
+        Stats.tasks_statuses_counters[prev_status] -=1
 
     @staticmethod
     def get_statistics():
         """
         :return: statistic
         """
-        return Stats.tasks_by_statuses
+        return Stats.tasks_statuses_counters
 
     @staticmethod
     def get_task(task_id):
@@ -69,13 +69,12 @@ class Stats(object):
         :param task_id: GUID
         :return: 
         """
-        for group in Stats.tasks_by_statuses:
-            if task_id in Stats.tasks_by_statuses[group]:
-                return Stats.tasks_by_statuses[group][task_id]
+        return Stats.tasks_by_id[task_id]
 
 # Initialise Stats.tasks_by_statuses to {"CREATED": 0, ...}
-Stats.tasks_by_statuses = {status: 0 for status in TASK_STATUSES.__dict__ if not status.startswith("_")}
+Stats.tasks_statuses_counters = {status: 0 for status in TASK_STATUSES.__dict__ if not status.startswith("_")}
 
+TASKS = {}
 
 class Task(object):
     def __init__(self, url, user, path=None):
@@ -92,6 +91,7 @@ class Task(object):
         self.created = time.time()
         self.status = (self.created, TASK_STATUSES.CREATED)
         Stats.update(None, TASK_STATUSES.CREATED)
+        TASKS[self.task_id] = self
 
     def _generate_full_path(self, path):
 

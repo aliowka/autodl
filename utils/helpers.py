@@ -1,6 +1,7 @@
-from defer import Deferred
 
 import time
+
+from twisted.internet.defer import Deferred
 from twisted.web.http import _escape
 
 

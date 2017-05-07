@@ -17,7 +17,7 @@ from twisted.web.server import Site
 from service.statistics import DownloaderStatistics
 from service.exceptions import UnknownUser, CriticalParameterMissing
 from service.settings import SERVICE_PORT, MAX_TASKS_NUMBER
-from service.task import Task, TASK_STATUSES, Stats
+from service.task import Task, TASK_STATUSES, Stats, TASKS
 from service.workers_manager_async import WorkersManager
 
 from twisted.python import log
@@ -154,7 +154,7 @@ class TaskInfo(BaseView):
         if "task_id" not in request.args:
             raise CriticalParameterMissing()
         task_id = request.args["task_id"][0]
-        task = Stats.get_task(task_id)
+        task = TASKS.get(task_id)
         if task:
             return json.dumps({"task": str(task)})
         else:
