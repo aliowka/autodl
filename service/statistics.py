@@ -15,8 +15,17 @@ class DownloaderStatistics(object):
         key = "responses/%s" % response.code
         if key not in DownloaderStatistics.expiring_dict:
             DownloaderStatistics.expiring_dict[key] = 0
+        if key not in DownloaderStatistics.expiring_dict:
+            DownloaderStatistics.expiring_dict[key] = 0
+
         DownloaderStatistics.expiring_dict[key] += 1
-        DownloaderStatistics.expiring_dict["responses/total"] += 1
+
+        key = "responses/total"
+        if key not in DownloaderStatistics.expiring_dict:
+            DownloaderStatistics.expiring_dict[key] = 0
+
+        DownloaderStatistics.expiring_dict[key] += 1
+
         DownloaderStatistics.expiring_dict["response_ratio_per_10_min"] = \
-            DownloaderStatistics.expiring_dict["responses/total"] / 600
+            float(DownloaderStatistics.expiring_dict["responses/total"]) / 600
         return response
